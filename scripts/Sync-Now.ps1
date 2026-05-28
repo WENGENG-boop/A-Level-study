@@ -1,6 +1,7 @@
 param(
     [string]$Branch = "main",
-    [string]$Message = ""
+    [string]$Message = "",
+    [int]$MaxFileMB = 100
 )
 
 $ErrorActionPreference = "Stop"
@@ -38,6 +39,23 @@ if (-not $status) {
 & git add -A
 if ($LASTEXITCODE -ne 0) {
     throw "git add failed."
+}
+
+$maxFileBytes = $MaxFileMB * 1MB
+$largeFiles = Get-ChildItem -LiteralPath $repoRoot -Recurse -File -Force |
+    Where-Object {
+        $_.FullName -notlike (Join-Path $repoRoot ".git*") -and
+        $_.Length -gt $maxFileBytes
+    }
+
+foreach ($file in $largeFiles) {
+    $relativePath = $file.FullName.Substring($repoRoot.Length + 1).Replace("\", "/")
+    & git rm --cached --ignore-unmatch -- $relativePath | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not skip large file: $relativePath"
+    }
+
+    Write-Host "Skipped large file over ${MaxFileMB}MB: $relativePath"
 }
 
 $staged = & git diff --cached --name-only
