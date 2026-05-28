@@ -40,14 +40,40 @@ function Invoke-AutoSync {
 
     try {
         $message = "Auto-sync $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
-        $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $syncScript -Branch $Branch -Message $message 2>&1
-        $syncExitCode = $LASTEXITCODE
-        foreach ($line in $output) {
-            Write-Log $line
+        $stdoutPath = Join-Path $gitDir "autosync.stdout.tmp"
+        $stderrPath = Join-Path $gitDir "autosync.stderr.tmp"
+
+        Remove-Item -Path $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
+
+        $arguments = @(
+            "-NoProfile",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $syncScript,
+            "-Branch", $Branch,
+            "-Message", $message
+        )
+
+        $process = Start-Process `
+            -FilePath "powershell.exe" `
+            -ArgumentList $arguments `
+            -RedirectStandardOutput $stdoutPath `
+            -RedirectStandardError $stderrPath `
+            -WindowStyle Hidden `
+            -Wait `
+            -PassThru
+
+        foreach ($path in @($stdoutPath, $stderrPath)) {
+            if (Test-Path $path) {
+                foreach ($line in Get-Content -Path $path) {
+                    Write-Log $line
+                }
+            }
         }
-        if ($syncExitCode -ne 0) {
-            throw "Sync script failed with exit code $syncExitCode"
+
+        if ($process.ExitCode -ne 0) {
+            throw "Sync script failed with exit code $($process.ExitCode)"
         }
+
         Write-Log "Sync finished."
     }
     catch {
