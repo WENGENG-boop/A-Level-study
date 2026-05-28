@@ -41,8 +41,12 @@ function Invoke-AutoSync {
     try {
         $message = "Auto-sync $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
         $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $syncScript -Branch $Branch -Message $message 2>&1
+        $syncExitCode = $LASTEXITCODE
         foreach ($line in $output) {
             Write-Log $line
+        }
+        if ($syncExitCode -ne 0) {
+            throw "Sync script failed with exit code $syncExitCode"
         }
         Write-Log "Sync finished."
     }
