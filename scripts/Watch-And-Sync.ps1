@@ -48,9 +48,9 @@ function Invoke-AutoSync {
         $arguments = @(
             "-NoProfile",
             "-ExecutionPolicy", "Bypass",
-            "-File", $syncScript,
+            "-File", "`"$syncScript`"",
             "-Branch", $Branch,
-            "-Message", $message
+            "-Message", "`"$message`""
         )
 
         $process = Start-Process `
