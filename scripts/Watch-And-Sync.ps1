@@ -8,6 +8,7 @@ $ErrorActionPreference = "Stop"
 $candidateRoot = Split-Path -Parent $PSScriptRoot
 $repoRoot = (& git -C $candidateRoot rev-parse --show-toplevel).Trim()
 $gitDir = Join-Path $repoRoot ".git"
+$normalizedGitDir = [System.IO.Path]::GetFullPath($gitDir).TrimEnd("\", "/")
 $logPath = Join-Path $gitDir "autosync.log"
 $syncScript = Join-Path $PSScriptRoot "Sync-Now.ps1"
 
@@ -25,7 +26,13 @@ function Test-IsGitInternalPath {
         return $false
     }
 
-    return $Path.StartsWith($gitDir, [System.StringComparison]::OrdinalIgnoreCase)
+    $normalizedPath = [System.IO.Path]::GetFullPath($Path).TrimEnd("\", "/")
+
+    return (
+        $normalizedPath.Equals($normalizedGitDir, [System.StringComparison]::OrdinalIgnoreCase) -or
+        $normalizedPath.StartsWith("$normalizedGitDir\", [System.StringComparison]::OrdinalIgnoreCase) -or
+        $normalizedPath.StartsWith("$normalizedGitDir/", [System.StringComparison]::OrdinalIgnoreCase)
+    )
 }
 
 function Invoke-AutoSync {
